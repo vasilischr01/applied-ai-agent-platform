@@ -1,0 +1,3 @@
+Applied AI engineering focuses on turning machine learning and language model capabilities
+into reliable user-facing systems. Important concerns include evaluation, tool integration,
+latency, observability, deployment, data quality, and failure handling.

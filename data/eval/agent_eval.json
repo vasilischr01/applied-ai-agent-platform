@@ -1,0 +1,26 @@
+[
+  {
+    "name": "calculator",
+    "message": "What is 17.5 multiplied by 8?",
+    "expected_tool": "calculator",
+    "answer_contains": "140"
+  },
+  {
+    "name": "document_search",
+    "message": "Search the local documents for observability in ML systems.",
+    "expected_tool": "document_search",
+    "answer_contains": "observability"
+  },
+  {
+    "name": "database_stats",
+    "message": "Show me the database stats for previous runs.",
+    "expected_tool": "database_stats",
+    "answer_contains": "Total runs"
+  },
+  {
+    "name": "direct",
+    "message": "Hello, what can you do?",
+    "expected_tool": null,
+    "answer_contains": "calculator"
+  }
+]

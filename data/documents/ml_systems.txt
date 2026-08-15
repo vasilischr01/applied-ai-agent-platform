@@ -1,0 +1,4 @@
+Observability in machine learning systems means monitoring software behavior and model behavior.
+Useful signals include request latency, error rates, throughput, data quality, model drift,
+prediction distributions, and task-specific quality metrics. Structured logs and Prometheus
+metrics make failures easier to diagnose.
