@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: applied-ai-agent-ingress
+spec:
+  rules:
+    - host: applied-ai-agent.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: applied-ai-agent-service
+                port:
+                  number: 80

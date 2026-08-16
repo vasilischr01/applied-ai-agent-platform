@@ -1,8 +1,8 @@
 # Applied AI Agent Platform
 
-Production-style local AI agent backend built with FastAPI, Ollama, semantic retrieval, tool execution, evaluation, observability, session memory, Docker, pytest, Ruff, and GitHub Actions.
+Production-style local AI agent backend built with FastAPI, Ollama, semantic retrieval, tool execution, evaluation, observability, session memory, Docker, Kubernetes, pytest, Ruff, and GitHub Actions.
 
-The project demonstrates applied AI engineering beyond a simple chatbot by combining tool orchestration, deterministic routing, local LLM inference, semantic document search, short-term conversational memory, evaluation, persistence, metrics, logging, and performance optimization.
+The project demonstrates applied AI engineering beyond a simple chatbot by combining tool orchestration, deterministic routing, local LLM inference, semantic document search, short-term conversational memory, evaluation, persistence, metrics, logging, performance optimization, containerization, and Kubernetes orchestration.
 
 ---
 
@@ -24,6 +24,8 @@ The platform demonstrates how an AI-enabled backend can:
 - measure latency by execution stage
 - evaluate tool selection and execution
 - run without a paid cloud LLM API
+- run as a containerized service
+- deploy to Kubernetes with health and readiness probes
 
 The focus is on building reliable AI software with explicit engineering trade-offs.
 
@@ -52,6 +54,12 @@ The focus is on building reliable AI software with explicit engineering trade-of
 - Evaluation dataset and runner
 - FastAPI + Swagger
 - Docker / Docker Compose
+- Kubernetes deployment
+- Kubernetes ConfigMap
+- Kubernetes ClusterIP Service
+- Kubernetes Ingress manifest
+- Liveness and readiness probes
+- CPU and memory resource requests/limits
 - pytest + Ruff
 - GitHub Actions CI
 - Deterministic fallback behavior when Ollama is unavailable
@@ -77,28 +85,54 @@ Deterministic Router        LLM Planner
   +--------------+--------------+
                  |
                  v
-            Tool Execution
+             Tool Execution
                  |
-       +---------+----------+
-       |         |          |
-       v         v          v
- Calculator  Document    Database
-             Search       Stats
+        +--------+---------+
+        |        |         |
+        v        v         v
+ Calculator  Document   Database
+             Search      Stats
                  |
                  v
-         Answer Generation
+          Answer Generation
                  |
-       +---------+----------+
-       |                    |
-       v                    v
-Deterministic           Ollama LLM
-Answer                  Synthesis
-       |
-       v
-Session Memory
-       |
-       v
-Database + Metrics + Logs
+        +--------+---------+
+        |                  |
+        v                  v
+ Deterministic         Ollama LLM
+ Answer                Synthesis
+        |
+        v
+ Session Memory
+        |
+        v
+ Database + Metrics + Logs
+```
+
+### Deployment architecture
+
+```text
+Client
+  |
+  v
+Kubernetes Service
+  |
+  v
+Deployment
+  |
+  v
+FastAPI Pod
+  |
+  +--> /health  -> liveness probe
+  |
+  +--> /ready   -> readiness probe
+  |
+  +--> Agent Service
+         |
+         +--> Tools
+         +--> Database
+         +--> Ollama
+         +--> Prometheus Metrics
 ```
 
 ---
@@ -109,7 +143,7 @@ The agent uses a hybrid routing strategy.
 
 For obvious requests, deterministic routing is used immediately.
 
-Examples:
+Example:
 
 ```text
 What is 17.5 multiplied by 8?
@@ -121,7 +155,7 @@ routes directly to:
 calculator
 ```
 
-and:
+Another example:
 
 ```text
 Show me the database stats for previous runs.
@@ -460,7 +494,7 @@ total_ms: ~26292
 
 For simple deterministic tools, final LLM generation is skipped entirely.
 
-Observed examples:
+Observed example:
 
 ```text
 calculator
@@ -775,11 +809,17 @@ applied-ai-agent-platform/
 │   │   └── run.py
 │   └── schemas/
 │       └── agent.py
+├── k8s/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── ingress.yaml
+│   └── service.yaml
 ├── tests/
 │   ├── conftest.py
 │   ├── test_api.py
 │   ├── test_eval.py
 │   └── test_tools.py
+├── .dockerignore
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
@@ -834,6 +874,7 @@ Ruff
 ```text
 Docker
 Docker Compose
+Kubernetes
 GitHub Actions
 PostgreSQL
 SQLite
@@ -1010,6 +1051,203 @@ Run:
 docker compose up --build
 ```
 
+### Docker image
+
+A standalone application image can be built with:
+
+```powershell
+docker build -t applied-ai-agent-platform:latest .
+```
+
+The repository includes a `.dockerignore` to prevent unnecessary local files such as virtual environments, Git metadata, caches, environment files, and local databases from being copied into the build context.
+
+---
+
+## Kubernetes Deployment
+
+The application includes Kubernetes manifests for container orchestration and local cluster deployment.
+
+```text
+k8s/
+├── configmap.yaml
+├── deployment.yaml
+├── service.yaml
+└── ingress.yaml
+```
+
+### Kubernetes components
+
+The Kubernetes configuration includes:
+
+- `Deployment` for application lifecycle management
+- `ClusterIP Service` for internal service discovery and routing
+- `ConfigMap` for application configuration
+- `Ingress` manifest for hostname-based routing
+- liveness probe using `/health`
+- readiness probe using `/ready`
+- CPU requests and limits
+- memory requests and limits
+- configurable container image pull policy
+
+### Build the image
+
+```powershell
+docker build -t applied-ai-agent-platform:latest .
+```
+
+### Deploy
+
+```powershell
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+### Verify the cluster
+
+```powershell
+kubectl cluster-info
+kubectl get nodes
+```
+
+### Verify application resources
+
+```powershell
+kubectl get pods
+kubectl get svc
+kubectl get ingress
+```
+
+A healthy application pod should report:
+
+```text
+READY   STATUS
+1/1     Running
+```
+
+### Local access
+
+For local development, expose the Kubernetes Service through port forwarding:
+
+```powershell
+kubectl port-forward service/applied-ai-agent-service 8080:80
+```
+
+Swagger is then available at:
+
+```text
+http://127.0.0.1:8080/docs
+```
+
+Health endpoint:
+
+```text
+http://127.0.0.1:8080/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### Health probes
+
+The Kubernetes Deployment uses:
+
+```text
+GET /health
+```
+
+as the liveness probe and:
+
+```text
+GET /ready
+```
+
+as the readiness probe.
+
+This allows Kubernetes to distinguish between:
+
+- a container that is alive
+- an application that is ready to receive traffic
+
+### ConfigMap
+
+Runtime configuration is provided through:
+
+```text
+k8s/configmap.yaml
+```
+
+This separates deployment configuration from application code.
+
+### Resource management
+
+The Deployment defines CPU and memory requests and limits.
+
+This provides explicit scheduling and resource boundaries instead of allowing the application container to consume unlimited cluster resources.
+
+### Service
+
+The application is exposed internally through:
+
+```text
+applied-ai-agent-service
+```
+
+using a Kubernetes `ClusterIP` Service.
+
+The service maps:
+
+```text
+port 80
+→
+container port 8000
+```
+
+### Ingress
+
+The included Ingress manifest defines the hostname:
+
+```text
+applied-ai-agent.local
+```
+
+An ingress controller is required for direct hostname-based routing.
+
+The Ingress manifest is included as part of the deployment configuration even when local development uses `kubectl port-forward`.
+
+### Local validation
+
+The Kubernetes deployment was validated locally using Docker Desktop Kubernetes.
+
+The validated flow was:
+
+```text
+Docker image
+    |
+    v
+Kubernetes Deployment
+    |
+    v
+Pod
+    |
+    v
+ClusterIP Service
+    |
+    v
+kubectl port-forward
+    |
+    v
+FastAPI /health and /docs
+```
+
+The deployment successfully served both the health endpoint and Swagger documentation through the Kubernetes Service.
+
 ---
 
 ## Security
@@ -1030,6 +1268,8 @@ __pycache__/
 .ruff_cache/
 local database files
 ```
+
+Docker build context exclusions are managed through `.dockerignore`.
 
 No API keys need to be committed to the repository.
 
@@ -1102,6 +1342,32 @@ total execution
 
 ---
 
+### Containerized deployment
+
+Docker is used to package the application into a reproducible runtime environment.
+
+A `.dockerignore` reduces unnecessary build context and excludes local development artifacts from the image build.
+
+---
+
+### Kubernetes orchestration
+
+Kubernetes provides a deployment layer around the containerized application.
+
+The implementation includes:
+
+- declarative deployment manifests
+- service discovery
+- configuration management
+- health monitoring
+- readiness monitoring
+- resource constraints
+- ingress configuration
+
+This separates application code from runtime orchestration.
+
+---
+
 ## Current limitations
 
 The current implementation intentionally remains lightweight.
@@ -1116,6 +1382,9 @@ Current limitations include:
 - no authentication layer is currently included
 - no persistent vector database is required yet
 - inference speed depends heavily on hardware
+- Ollama is expected to run outside the Kubernetes pod in the current local configuration
+- direct Ingress routing requires an ingress controller
+- distributed session state would be required before safely scaling multiple application replicas
 
 ---
 
@@ -1143,8 +1412,10 @@ Potential extensions include:
 - multi-step tool execution
 - native tool-calling model support
 - multi-agent workflows
-- Kubernetes deployment
-- cloud deployment
+- Horizontal Pod Autoscaling
+- Kubernetes Secrets
+- Helm charts
+- cloud Kubernetes deployment
 - GPU inference support
 
 ---
@@ -1192,10 +1463,11 @@ observability
 performance optimization
 testing
 containerization
+Kubernetes orchestration
 CI
 ```
 
-The goal is to demonstrate how AI capabilities can be integrated into a measurable, testable, and production-oriented software system.
+The goal is to demonstrate how AI capabilities can be integrated into a measurable, testable, deployable, and production-oriented software system.
 
 ---
 
