@@ -125,11 +125,54 @@ class Planner:
             "how many runs",
             "agent stats",
             "agent statistics",
+            "tool usage",
+            "tool usage stats",
+            "tool usage statistics",
+            "tools used",
+            "tool used",
+            "which tools",
+            "what tools",
+            "how many tool",
+            "tool calls",
+            "tools have been used",
+            "tools were used",
         ]
+        
+        database_usage_query = (
+            (
+                "tool" in lower
+                and "direct" in lower
+                and (
+                    "run" in lower
+                    or "runs" in lower
+                    or "statistics" in lower
+                    or "stats" in lower
+                )
+            )
+            or (
+                "database" in lower
+                and (
+                    "run" in lower
+                    or "runs" in lower
+                    or "statistics" in lower
+                    or "stats" in lower
+                )
+            )
+            or (
+                "how many" in lower
+                and (
+                    "run" in lower
+                    or "runs" in lower
+                )
+            )
+        )
 
-        if any(
-            pattern in lower
-            for pattern in database_patterns
+        if (
+            database_usage_query
+            or any(
+                pattern in lower
+                for pattern in database_patterns
+            )
         ):
             return Plan(
                 "database_stats",
@@ -406,6 +449,16 @@ def _extract_math_expression(
     expression = max(
         candidates,
         key=len,
+    )
+
+    expression = expression.strip()
+
+    # Remove sentence punctuation accidentally captured
+    # after a numeric expression, e.g. "3.5 * 2.4."
+    expression = re.sub(
+        r"(?<=\d)\.(?=\s*$)",
+        "",
+        expression,
     )
 
     if not re.search(

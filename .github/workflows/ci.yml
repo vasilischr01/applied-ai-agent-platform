@@ -1,17 +1,44 @@
 name: CI
+
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: ruff check .
-      - run: pytest -q
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Compile Python modules
+        run: |
+          python -m py_compile src/api/main.py
+          python -m py_compile src/agent/planner.py
+          python -m py_compile src/agent/service.py
+          python -m py_compile src/agent/tools.py
+          python -m py_compile src/agent/memory.py
+          python -m py_compile src/eval/runner.py
+
+      - name: Run tests
+        env:
+          DATABASE_URL: sqlite+pysqlite:///./test_agent_platform.db
+          ENABLE_LLM: "false"
+        run: pytest -q
+
+      - name: Build Docker image
+        run: docker build -t applied-ai-agent-platform .

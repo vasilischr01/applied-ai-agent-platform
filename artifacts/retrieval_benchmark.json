@@ -1,0 +1,11 @@
+{
+  "queries_tested": 10,
+  "cold_start_ms": 17388.895,
+  "warm_latency_ms": {
+    "average": 12.377,
+    "median": 13.038,
+    "p95": 13.566,
+    "min": 10.03,
+    "max": 13.655
+  }
+}

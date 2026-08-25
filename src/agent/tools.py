@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import ast
 import math
 import operator
-import re
+from functools import lru_cache
 from pathlib import Path
+from threading import Lock
+from typing import Any
 
-from sentence_transformers import SentenceTransformer, util
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -35,13 +38,19 @@ def _eval_ast(node):
     ):
         return node.value
 
-    if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_BINARY:
+    if (
+        isinstance(node, ast.BinOp)
+        and type(node.op) in _ALLOWED_BINARY
+    ):
         return _ALLOWED_BINARY[type(node.op)](
             _eval_ast(node.left),
             _eval_ast(node.right),
         )
 
-    if isinstance(node, ast.UnaryOp) and type(node.op) in _ALLOWED_UNARY:
+    if (
+        isinstance(node, ast.UnaryOp)
+        and type(node.op) in _ALLOWED_UNARY
+    ):
         return _ALLOWED_UNARY[type(node.op)](
             _eval_ast(node.operand)
         )
@@ -51,7 +60,9 @@ def _eval_ast(node):
 
 def calculator(expression: str) -> dict:
     if len(expression) > 200:
-        raise ValueError("Expression too long")
+        raise ValueError(
+            "Expression too long"
+        )
 
     result = _eval_ast(
         ast.parse(
@@ -60,38 +71,65 @@ def calculator(expression: str) -> dict:
         )
     )
 
-    if isinstance(result, complex) or not math.isfinite(float(result)):
-        raise ValueError("Invalid numeric result")
+    if (
+        isinstance(result, complex)
+        or not math.isfinite(
+            float(result)
+        )
+    ):
+        raise ValueError(
+            "Invalid numeric result"
+        )
 
     return {
         "result": float(result),
     }
 
 
-def _tokenize(text: str) -> list[str]:
-    return re.findall(
-        r"[a-zA-Z0-9_]+",
-        text.lower(),
-    )
-
-
-DOCUMENTS_DIR = Path("data/documents")
-
-_embedding_model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
+DOCUMENTS_DIR = Path(
+    "data/documents"
 )
 
-_cached_documents: list[dict] = []
-_cached_embeddings = None
+_cached_documents: list[
+    dict[str, str]
+] = []
+
+_cached_embeddings: Any = None
+_cache_initialized = False
+
+_cache_lock = Lock()
+
+
+@lru_cache(maxsize=1)
+def _get_embedding_model():
+    """
+    Lazily load the sentence-transformer model.
+
+    The model is downloaded/initialized only when
+    document search is used for the first time.
+    """
+
+    from sentence_transformers import (
+        SentenceTransformer,
+    )
+
+    return SentenceTransformer(
+        "all-MiniLM-L6-v2"
+    )
 
 
 def _load_document_cache() -> None:
     global _cached_documents
     global _cached_embeddings
+    global _cache_initialized
 
-    documents = []
+    documents: list[
+        dict[str, str]
+    ] = []
 
-    for path in DOCUMENTS_DIR.glob("*.txt"):
+    for path in sorted(
+        DOCUMENTS_DIR.glob("*.txt")
+    ):
         text = path.read_text(
             encoding="utf-8"
         ).strip()
@@ -108,6 +146,7 @@ def _load_document_cache() -> None:
 
     if not documents:
         _cached_embeddings = None
+        _cache_initialized = True
         return
 
     corpus = [
@@ -115,19 +154,46 @@ def _load_document_cache() -> None:
         for item in documents
     ]
 
-    _cached_embeddings = _embedding_model.encode(
+    model = _get_embedding_model()
+
+    _cached_embeddings = model.encode(
         corpus,
         convert_to_tensor=True,
         normalize_embeddings=True,
+        show_progress_bar=False,
     )
+
+    _cache_initialized = True
+
+
+def _ensure_document_cache() -> None:
+    global _cache_initialized
+
+    if _cache_initialized:
+        return
+
+    with _cache_lock:
+        if _cache_initialized:
+            return
+
+        _load_document_cache()
 
 
 def document_search(
     query: str,
     top_k: int = 3,
 ) -> dict:
-    if not _cached_documents:
-        _load_document_cache()
+    if not query.strip():
+        raise ValueError(
+            "Search query must not be empty"
+        )
+
+    if top_k < 1:
+        raise ValueError(
+            "top_k must be at least 1"
+        )
+
+    _ensure_document_cache()
 
     if (
         not _cached_documents
@@ -137,10 +203,15 @@ def document_search(
             "results": [],
         }
 
-    query_embedding = _embedding_model.encode(
+    from sentence_transformers import util
+
+    model = _get_embedding_model()
+
+    query_embedding = model.encode(
         query,
         convert_to_tensor=True,
         normalize_embeddings=True,
+        show_progress_bar=False,
     )
 
     similarities = util.cos_sim(
@@ -148,9 +219,16 @@ def document_search(
         _cached_embeddings,
     )[0]
 
-    ranked_indices = similarities.argsort(
-        descending=True
-    )[:top_k]
+    result_count = min(
+        top_k,
+        len(_cached_documents),
+    )
+
+    ranked_indices = (
+        similarities.argsort(
+            descending=True
+        )[:result_count]
+    )
 
     results = []
 
@@ -159,12 +237,22 @@ def document_search(
 
         results.append(
             {
-                "document": _cached_documents[i]["document"],
+                "document": (
+                    _cached_documents[i][
+                        "document"
+                    ]
+                ),
                 "score": round(
-                    float(similarities[i]),
+                    float(
+                        similarities[i]
+                    ),
                     4,
                 ),
-                "snippet": _cached_documents[i]["text"][:500],
+                "snippet": (
+                    _cached_documents[i][
+                        "text"
+                    ][:500]
+                ),
             }
         )
 
@@ -173,10 +261,14 @@ def document_search(
     }
 
 
-def database_stats(db: Session) -> dict:
+def database_stats(
+    db: Session,
+) -> dict:
     total = (
         db.scalar(
-            select(func.count()).select_from(
+            select(
+                func.count()
+            ).select_from(
                 AgentRun
             )
         )
@@ -185,18 +277,28 @@ def database_stats(db: Session) -> dict:
 
     tool_runs = (
         db.scalar(
-            select(func.count())
-            .select_from(AgentRun)
+            select(
+                func.count()
+            )
+            .select_from(
+                AgentRun
+            )
             .where(
-                AgentRun.tool_used.is_not(None)
+                AgentRun.tool_used.is_not(
+                    None
+                )
             )
         )
         or 0
     )
 
     return {
-        "total_runs": int(total),
-        "tool_runs": int(tool_runs),
+        "total_runs": int(
+            total
+        ),
+        "tool_runs": int(
+            tool_runs
+        ),
         "direct_runs": int(
             total - tool_runs
         ),
@@ -205,7 +307,9 @@ def database_stats(db: Session) -> dict:
 
 TOOL_DESCRIPTIONS = {
     "calculator": {
-        "description": "Evaluate arithmetic.",
+        "description": (
+            "Evaluate arithmetic."
+        ),
         "arguments": {
             "expression": "string",
         },
@@ -221,11 +325,9 @@ TOOL_DESCRIPTIONS = {
     },
     "database_stats": {
         "description": (
-            "Return aggregate agent-run statistics."
+            "Return aggregate "
+            "agent-run statistics."
         ),
         "arguments": {},
     },
 }
-
-
-_load_document_cache()

@@ -1,26 +1,120 @@
 [
   {
-    "name": "calculator",
+    "name": "calculator_multiplication",
     "message": "What is 17.5 multiplied by 8?",
     "expected_tool": "calculator",
-    "answer_contains": "140"
+    "expected_result": 140.0,
+    "answer_contains": ["140"]
   },
   {
-    "name": "document_search",
+    "name": "calculator_addition",
+    "message": "Calculate 125 plus 378.",
+    "expected_tool": "calculator",
+    "expected_result": 503.0,
+    "answer_contains": ["503"]
+  },
+  {
+    "name": "calculator_subtraction",
+    "message": "What is 1000 minus 275?",
+    "expected_tool": "calculator",
+    "expected_result": 725.0,
+    "answer_contains": ["725"]
+  },
+  {
+    "name": "calculator_division",
+    "message": "Calculate 144 divided by 12.",
+    "expected_tool": "calculator",
+    "expected_result": 12.0,
+    "answer_contains": ["12"]
+  },
+  {
+    "name": "calculator_precedence",
+    "message": "What is 10 + 5 * 3?",
+    "expected_tool": "calculator",
+    "expected_result": 25.0,
+    "answer_contains": ["25"]
+  },
+  {
+    "name": "calculator_decimal",
+    "message": "Calculate 3.5 times 2.4.",
+    "expected_tool": "calculator",
+    "expected_result": 8.4,
+    "answer_contains": ["8.4"]
+  },
+
+  {
+    "name": "document_search_observability",
     "message": "Search the local documents for observability in ML systems.",
     "expected_tool": "document_search",
-    "answer_contains": "observability"
+    "answer_contains": ["observability"]
   },
+  {
+    "name": "document_search_observability_rephrased",
+    "message": "Find information in the documents about ML observability.",
+    "expected_tool": "document_search",
+    "answer_contains": ["observability"]
+  },
+  {
+    "name": "document_search_local_docs",
+    "message": "Use document search to look for observability.",
+    "expected_tool": "document_search",
+    "answer_contains": ["observability"]
+  },
+
   {
     "name": "database_stats",
     "message": "Show me the database stats for previous runs.",
     "expected_tool": "database_stats",
-    "answer_contains": "Total runs"
+    "required_output_fields": [
+      "total_runs",
+      "tool_runs",
+      "direct_runs"
+    ]
   },
   {
-    "name": "direct",
+    "name": "database_stats_rephrased",
+    "message": "How many agent runs are stored in the database?",
+    "expected_tool": "database_stats",
+    "required_output_fields": [
+      "total_runs",
+      "tool_runs",
+      "direct_runs"
+    ]
+  },
+  {
+    "name": "database_stats_tool_usage",
+    "message": "Give me statistics about previous tool and direct runs.",
+    "expected_tool": "database_stats",
+    "required_output_fields": [
+      "total_runs",
+      "tool_runs",
+      "direct_runs"
+    ]
+  },
+
+  {
+    "name": "direct_capabilities",
     "message": "Hello, what can you do?",
     "expected_tool": null,
-    "answer_contains": "calculator"
+    "answer_contains_any": [
+      "calculator",
+      "document",
+      "database"
+    ]
+  },
+  {
+    "name": "direct_greeting",
+    "message": "Hello!",
+    "expected_tool": null
+  },
+  {
+    "name": "direct_help",
+    "message": "How can you help me?",
+    "expected_tool": null
+  },
+  {
+    "name": "direct_identity",
+    "message": "What kind of assistant are you?",
+    "expected_tool": null
   }
 ]
