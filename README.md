@@ -70,8 +70,8 @@ flowchart TD
     S --> D[Deployment]
     D --> P[FastAPI Pod]
 
-    P --> H[/health]
-    P --> R[/ready]
+    P --> H["/health"]
+    P --> R["/ready"]
     P --> A[Agent Service]
 
     A --> T[Tools]
