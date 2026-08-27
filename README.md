@@ -1,448 +1,266 @@
-**# Applied AI Agent Platform**
+# Applied AI Agent Platform
+
+A production-style **local AI agent backend** built with FastAPI, Ollama, semantic retrieval, tool execution, conversational memory, evaluation, observability, Docker, Kubernetes, pytest, Ruff, and GitHub Actions.
+
+The project demonstrates applied AI engineering beyond a simple chatbot by combining **deterministic routing, local LLM inference, semantic document search, safe tool execution, measurable evaluation, persistence, metrics, structured logging, performance optimization, containerization, and orchestration**.
+
+---
 
-Production-style local AI agent backend built with FastAPI, Ollama, semantic retrieval, tool execution, evaluation, observability, session memory, Docker, Kubernetes, pytest, Ruff, and GitHub Actions.
+## Highlights
 
-The project demonstrates applied AI engineering beyond a simple chatbot by combining tool orchestration, deterministic routing, local LLM inference, semantic document search, short-term conversational memory, evaluation, persistence, metrics, logging, performance optimization, containerization, and Kubernetes orchestration.
+* Hybrid deterministic + LLM routing
+* Local inference with Ollama and Llama 3.2 3B
+* Semantic document retrieval with Sentence Transformers
+* Cached document embeddings
+* Safe AST-based calculator
+* Database statistics tool
+* Session-based conversational memory
+* Context-aware follow-up handling
+* Deterministic fallback when Ollama is unavailable
+* SQLAlchemy persistence
+* SQLite and PostgreSQL support
+* Prometheus-compatible metrics
+* Structured logging
+* Per-stage latency instrumentation
+* Reproducible agent evaluation
+* Docker / Docker Compose
+* Kubernetes deployment manifests
+* Liveness and readiness probes
+* pytest + Ruff
+* GitHub Actions CI
 
-**---**
+---
 
-**## Why this project**
+## Architecture
 
-This is not only a chatbot.
+```mermaid
+flowchart TD
+    C[Client] --> API[FastAPI]
 
-The platform demonstrates how an AI-enabled backend can:
+    API --> A[Agent Service]
 
-\- route requests to tools
+    A --> R{Hybrid Router}
 
-\- bypass the LLM when deterministic logic is sufficient
+    R -->|Deterministic fast path| T[Tool Execution]
+    R -->|Ambiguous request| L[Ollama LLM Planner]
 
-\- execute tools safely
+    L --> T
 
-\- search local documents semantically
+    T --> CALC[Calculator]
+    T --> DOC[Semantic Document Search]
+    T --> DBT[Database Statistics]
 
-\- synthesize search results with a local LLM
+    CALC --> DANS[Deterministic Answer]
+    DBT --> DANS
+    DOC --> SYN[Optional LLM Synthesis]
 
-\- preserve short-term conversational context
+    DANS --> MEM[Session Memory]
+    SYN --> MEM
 
-\- resolve follow-up questions across turns
+    MEM --> DB[(SQLite / PostgreSQL)]
+    MEM --> MET[Prometheus Metrics]
+    MEM --> LOG[Structured Logs]
+```
 
-\- persist agent runs
+### Deployment architecture
 
-\- expose Prometheus metrics
+```mermaid
+flowchart TD
+    C[Client] --> S[Kubernetes Service]
+    S --> D[Deployment]
+    D --> P[FastAPI Pod]
 
-\- measure latency by execution stage
+    P --> H[/health]
+    P --> R[/ready]
+    P --> A[Agent Service]
 
-\- evaluate tool selection and execution
+    A --> T[Tools]
+    A --> DB[(Database)]
+    A --> O[Ollama]
+    A --> M[Prometheus Metrics]
+```
 
-\- run without a paid cloud LLM API
+---
 
-\- run as a containerized service
+## Why This Project
 
-\- deploy to Kubernetes with health and readiness probes
+This is not just a chatbot.
 
-The focus is on building reliable AI software with explicit engineering trade-offs.
+The platform is designed as an **AI-enabled software system** that can:
 
-**---**
+* route requests to specialized tools
+* bypass the LLM when deterministic logic is sufficient
+* execute tools safely
+* search local documents semantically
+* synthesize retrieval results with a local LLM
+* preserve short-term conversational context
+* resolve references across conversation turns
+* persist execution history
+* expose operational metrics
+* measure latency by execution stage
+* evaluate tool selection and execution
+* operate without a paid cloud LLM API
+* run as a containerized application
+* deploy to Kubernetes
 
-**## Core features**
+The focus is on **reliability, observability, testability, reproducibility, and explicit engineering trade-offs**.
 
-\- Local LLM through Ollama
+---
 
-\- Llama 3.2 3B support
+# Agent Design
 
-\- Deterministic fast-path routing
+## Hybrid Routing
 
-\- LLM fallback routing for ambiguous requests
+The agent combines:
 
-\- Safe calculator tool
+```text
+deterministic routing
++
+LLM fallback
+```
 
-\- Semantic document search
-
-\- Sentence Transformer embeddings
-
-\- Cached document embeddings
-
-\- Database statistics tool
-
-\- Session-based short-term conversation memory
-
-\- Context-aware follow-up handling
-
-\- Session reset endpoint
-
-\- SQLite for local development
-
-\- PostgreSQL support
-
-\- SQLAlchemy persistence
-
-\- Prometheus metrics
-
-\- Structured logging
-
-\- Per-stage latency instrumentation
-
-\- Evaluation dataset and runner
-
-\- FastAPI + Swagger
-
-\- Docker / Docker Compose
-
-\- Kubernetes deployment
-
-\- Kubernetes ConfigMap
-
-\- Kubernetes ClusterIP Service
-
-\- Kubernetes Ingress manifest
-
-\- Liveness and readiness probes
-
-\- CPU and memory resource requests/limits
-
-\- pytest + Ruff
-
-\- GitHub Actions CI
-
-\- Deterministic fallback behavior when Ollama is unavailable
-
-**---**
-
-**## Architecture**
-
-\`\`\`text
-
-Client
-
-  |
-
-  v
-
-FastAPI
-
-  |
-
-  v
-
-Agent Service
-
-  |
-
-  +-----------------------------+
-
-  |                             |
-
-  v                             v
-
-Deterministic Router        LLM Planner
-
-  |                             |
-
-  +--------------+--------------+
-
-                 |
-
-                 v
-
-             Tool Execution
-
-                 |
-
-        +--------+---------+
-
-        |        |         |
-
-        v        v         v
-
- Calculator  Document   Database
-
-             Search      Stats
-
-                 |
-
-                 v
-
-          Answer Generation
-
-                 |
-
-        +--------+---------+
-
-        |                  |
-
-        v                  v
-
- Deterministic         Ollama LLM
-
- Answer                Synthesis
-
-        |
-
-        v
-
- Session Memory
-
-        |
-
-        v
-
- Database + Metrics + Logs
-
-\`\`\`
-
-**### Deployment architecture**
-
-\`\`\`text
-
-Client
-
-  |
-
-  v
-
-Kubernetes Service
-
-  |
-
-  v
-
-Deployment
-
-  |
-
-  v
-
-FastAPI Pod
-
-  |
-
-  +--> /health  -> liveness probe
-
-  |
-
-  +--> /ready   -> readiness probe
-
-  |
-
-  +--> Agent Service
-
-         |
-
-         +--> Tools
-
-         +--> Database
-
-         +--> Ollama
-
-         +--> Prometheus Metrics
-
-\`\`\`
-
-**---**
-
-**## Hybrid routing**
-
-The agent uses a hybrid routing strategy.
-
-For obvious requests, deterministic routing is used immediately.
+Simple requests are routed without invoking the model.
 
 Example:
 
-\`\`\`text
-
+```text
 What is 17.5 multiplied by 8?
-
-\`\`\`
+```
 
 routes directly to:
 
-\`\`\`text
-
+```text
 calculator
+```
 
-\`\`\`
+Similarly:
 
-Another example:
-
-\`\`\`text
-
+```text
 Show me the database stats for previous runs.
-
-\`\`\`
+```
 
 routes directly to:
 
-\`\`\`text
+```text
+database_stats
+```
 
-database\_stats
-
-\`\`\`
-
-The LLM planner is only used when deterministic routing cannot confidently decide what to do.
+The LLM planner is used only when deterministic routing cannot confidently resolve the request.
 
 This reduces:
 
-\- unnecessary model calls
+* model calls
+* latency
+* compute usage
+* non-deterministic behavior
 
-\- latency
+---
 
-\- compute usage
+## Local LLM Integration
 
-\- non-deterministic behavior
-
-**---**
-
-**## Local LLM integration**
-
-The platform integrates with Ollama for local inference.
+The platform integrates with **Ollama** for local inference.
 
 Default model:
 
-\`\`\`text
-
+```text
 llama3.2:3b
+```
 
-\`\`\`
+The model is used for:
 
-The LLM is used for:
-
-\- ambiguous tool routing
-
-\- document-result synthesis
-
-\- contextual follow-up answers
-
-\- direct conversational reasoning
+* ambiguous routing
+* document-result synthesis
+* conversational reasoning
+* context-aware follow-up responses
 
 No paid cloud LLM API is required.
 
-**---**
+---
 
-**## Semantic document search**
+## Semantic Document Retrieval
 
-The document search tool uses dense embeddings instead of simple keyword matching.
+The document-search tool uses dense vector embeddings rather than basic keyword matching.
 
 Embedding model:
 
-\`\`\`text
-
+```text
 all-MiniLM-L6-v2
+```
 
-\`\`\`
+Retrieval flow:
 
-The workflow is:
-
-\`\`\`text
-
-local text documents
-
-        |
-
-        v
-
-Sentence Transformer embeddings
-
-        |
-
-        v
-
-cached document vectors
-
-        |
-
-        v
-
+```text
+documents
+   ↓
+Sentence Transformer
+   ↓
+document embeddings
+   ↓
+embedding cache
+   ↓
 query embedding
-
-        |
-
-        v
-
+   ↓
 cosine similarity
-
-        |
-
-        v
-
-ranked document results
-
-\`\`\`
+   ↓
+ranked results
+```
 
 Example request:
 
-\`\`\`json
-
+```json
 {
-
-  "message": "Find documents about monitoring model behavior."
-
+  "message": "Find documents about monitoring model behavior."
 }
-
-\`\`\`
+```
 
 Example result:
 
-\`\`\`json
-
+```json
 {
-
-  "document": "ml\_systems.txt",
-
-  "score": 0.4551,
-
-  "snippet": "..."
-
+  "document": "ml_systems.txt",
+  "score": 0.4551,
+  "snippet": "..."
 }
+```
 
-\`\`\`
+---
 
-**---**
+## Embedding Cache
 
-**## Embedding cache**
-
-Document embeddings are cached so they are not recomputed on every search request.
+Document embeddings are generated once and cached.
 
 Without caching:
 
-\`\`\`text
-
+```text
 request
-
-→ read documents
-
+→ load documents
 → embed all documents
-
 → embed query
-
 → similarity search
-
-\`\`\`
+```
 
 With caching:
 
-\`\`\`text
-
+```text
 startup
-
-→ read documents
-
+→ load documents
 → embed documents once
-
-→ cache embeddings
+→ cache vectors
 
 request
-
 → embed query
-
 → similarity search
+```
 
-\`\`\`
+This significantly reduces warm retrieval latency.
 
-This significantly reduces document-search overhead.
+---
 
-### Retrieval latency benchmark
+# Performance
 
-The retrieval benchmark is implemented in:
+## Retrieval Benchmark
+
+Benchmark implementation:
 
 ```text
 src/eval/retrieval_benchmark.py
@@ -452,7 +270,9 @@ Latest local result:
 
 ```text
 queries_tested: 10
-cold_start_ms: 13788.895
+
+cold_start_ms:
+13788.895
 
 warm_latency_ms:
   average: 12.377
@@ -462,389 +282,261 @@ warm_latency_ms:
   max: 13.655
 ```
 
-The cold measurement includes one-time model initialization and corpus embedding in a fresh Python process. Warm requests reuse the initialized model and cached document embeddings. Results are hardware-dependent.
+The cold measurement includes one-time model initialization and corpus embedding in a fresh Python process.
 
-Machine-readable results are stored in:
+Warm requests reuse:
+
+* the initialized embedding model
+* cached document embeddings
+
+Results are hardware-dependent.
+
+Machine-readable output:
 
 ```text
 artifacts/retrieval_benchmark.json
 ```
 
-**---**
+---
 
-**## Safe calculator**
+## Per-Stage Latency
+
+Agent execution is instrumented separately for:
+
+```text
+planning_ms
+tool_ms
+answer_generation_ms
+total_ms
+```
+
+Example:
+
+```text
+planning_ms:            0.15
+tool_ms:               46.38
+answer_generation_ms: 26244.83
+total_ms:              26291.93
+```
+
+This makes performance bottlenecks directly observable.
+
+---
+
+## Fast-Path Optimization
+
+An earlier implementation used the LLM for both planning and final answer generation.
+
+Observed example:
+
+```text
+planning_ms:          ~22782
+tool_ms:                ~425
+answer_generation_ms: ~15867
+total_ms:             ~39076
+```
+
+After deterministic fast-path routing:
+
+```text
+planning_ms:             ~0.15
+tool_ms:                ~46
+answer_generation_ms: ~26245
+total_ms:             ~26292
+```
+
+For tools whose result can be formatted deterministically, the final LLM call is removed entirely.
+
+Calculator example:
+
+```text
+planning_ms:          ~0.23
+tool_ms:              ~0.04
+answer_generation_ms: 0
+total_ms:             ~0.34
+```
+
+Database statistics example:
+
+```text
+planning_ms:          ~0.01
+tool_ms:               ~5.2
+answer_generation_ms: 0
+total_ms:             ~5.26
+```
+
+---
+
+# Tools
+
+## Safe Calculator
 
 Arithmetic expressions are evaluated using a restricted Python AST.
 
 Supported operations include:
 
-\- addition
+* addition
+* subtraction
+* multiplication
+* division
+* powers
+* modulo
+* unary positive values
+* unary negative values
 
-\- subtraction
-
-\- multiplication
-
-\- division
-
-\- powers
-
-\- modulo
-
-\- unary positive and negative values
-
-The implementation avoids unsafe direct execution such as \`eval()\`.
+The implementation intentionally avoids unsafe direct evaluation with `eval()`.
 
 Example:
 
-\`\`\`json
-
+```json
 {
-
-  "message": "What is 17.5 multiplied by 8?"
-
+  "message": "What is 17.5 multiplied by 8?"
 }
-
-\`\`\`
+```
 
 Result:
 
-\`\`\`json
-
+```json
 {
-
-  "tool\_used": "calculator",
-
-  "tool\_output": {
-
-    "result": 140.0
-
-  }
-
+  "tool_used": "calculator",
+  "tool_output": {
+    "result": 140.0
+  }
 }
+```
 
-\`\`\`
+---
 
-**---**
+## Database Statistics
 
-**## Database statistics tool**
-
-The agent can query aggregate statistics about previous runs.
-
-Example request:
-
-\`\`\`json
-
-{
-
-  "message": "Show me the database stats for previous runs."
-
-}
-
-\`\`\`
-
-Example output:
-
-\`\`\`json
-
-{
-
-  "total\_runs": 10,
-
-  "tool\_runs": 8,
-
-  "direct\_runs": 2
-
-}
-
-\`\`\`
-
-**---**
-
-**## Conversation memory**
-
-The platform supports short-term session-based conversational memory.
-
-Every request can include an optional:
-
-\`\`\`text
-
-session\_id
-
-\`\`\`
-
-If no session ID is supplied, the API generates one automatically.
-
-Example first request:
-
-\`\`\`json
-
-{
-
-  "message": "Find documents about monitoring model behavior."
-
-}
-
-\`\`\`
-
-Example response:
-
-\`\`\`json
-
-{
-
-  "session\_id": "6e5d01cd-f82f-4e71-b3db-b90740bfd6c8"
-
-}
-
-\`\`\`
-
-A follow-up can reuse the same session:
-
-\`\`\`json
-
-{
-
-  "message": "Summarize the first result.",
-
-  "session\_id": "6e5d01cd-f82f-4e71-b3db-b90740bfd6c8"
-
-}
-
-\`\`\`
-
-The agent can resolve references such as:
-
-\`\`\`text
-
-the first result
-
-that result
-
-that document
-
-the previous result
-
-it
-
-\`\`\`
-
-using stored conversation context.
-
-**---**
-
-**## Bounded short-term memory**
-
-Conversation memory is intentionally bounded.
-
-The in-memory session store limits:
-
-\- the number of stored turns per session
-
-\- the number of active sessions
-
-This prevents uncontrolled context and memory growth.
-
-The current memory implementation is intentionally local and process-bound.
-
-**---**
-
-**## Session reset**
-
-A session can be cleared through:
-
-\`\`\`text
-
-DELETE /api/v1/sessions/{session\_id}
-
-\`\`\`
-
-Example response:
-
-\`\`\`json
-
-{
-
-  "session\_id": "example-session-id",
-
-  "cleared": true
-
-}
-
-\`\`\`
-
-**---**
-
-**## Tool-specific answer strategy**
-
-Not every tool result requires another LLM call.
-
-The platform uses deterministic final answers for simple tools such as:
-
-\`\`\`text
-
-calculator
-
-database\_stats
-
-\`\`\`
-
-Document search can still use Ollama for natural-language synthesis.
-
-This avoids paying the latency cost of a second model call when it adds no value.
-
-**---**
-
-**## Latency observability**
-
-Agent execution is instrumented by stage.
-
-The application measures:
-
-\`\`\`text
-
-planning\_ms
-
-tool\_ms
-
-answer\_generation\_ms
-
-total\_ms
-
-\`\`\`
+The agent can inspect aggregate statistics from previous executions.
 
 Example:
 
-\`\`\`text
-
-planning\_ms: 0.15
-
-tool\_ms: 46.38
-
-answer\_generation\_ms: 26244.83
-
-total\_ms: 26291.93
-
-\`\`\`
-
-This makes it possible to identify exactly where latency is introduced.
-
-**---**
-
-**## Performance optimization**
-
-An earlier implementation used the local LLM for both planning and final answer generation.
-
-Example measured latency:
-
-\`\`\`text
-
-planning\_ms: \~22782
-
-tool\_ms: \~425
-
-answer\_generation\_ms: \~15867
-
-total\_ms: \~39076
-
-\`\`\`
-
-After introducing deterministic fast-path routing:
-
-\`\`\`text
-
-planning\_ms: \~0.15
-
-tool\_ms: \~46
-
-answer\_generation\_ms: \~26245
-
-total\_ms: \~26292
-
-\`\`\`
-
-For simple deterministic tools, final LLM generation is skipped entirely.
-
-Observed example:
-
-\`\`\`text
-
-calculator
-
-planning\_ms: \~0.23
-
-tool\_ms: \~0.04
-
-answer\_generation\_ms: 0
-
-total\_ms: \~0.34
-
-\`\`\`
-
-and:
-
-\`\`\`text
-
-database\_stats
-
-planning\_ms: \~0.01
-
-tool\_ms: \~5.2
-
-answer\_generation\_ms: 0
-
-total\_ms: \~5.26
-
-\`\`\`
-
-These measurements show the effect of eliminating unnecessary model calls.
-
-**---**
-
-**## Evaluation**
-
-The project includes an evaluation endpoint:
-
-\`\`\`text
-
-POST /api/v1/eval/run
-
-\`\`\`
-
-The evaluation framework measures:
-
-\- total cases
-
-\- passed cases
-
-\- pass rate
-
-\- tool selection accuracy
-
-\- tool execution accuracy
-
-Example response:
-
-\`\`\`json
-
+```json
 {
-
-  "total\_cases": 4,
-
-  "passed\_cases": 4,
-
-  "pass\_rate": 1.0,
-
-  "tool\_selection\_accuracy": 1.0,
-
-  "tool\_execution\_accuracy": 1.0
-
+  "message": "Show me the database stats for previous runs."
 }
+```
 
-\`\`\`
+Example result:
 
-The evaluation provides a reproducible way to validate agent behavior.
+```json
+{
+  "total_runs": 10,
+  "tool_runs": 8,
+  "direct_runs": 2
+}
+```
 
-Latest deterministic evaluation (`ENABLE_LLM=false`):
+---
+
+# Conversation Memory
+
+The platform provides short-term session-based memory.
+
+Each request may contain:
+
+```text
+session_id
+```
+
+If no session ID is provided, one is generated automatically.
+
+Example first request:
+
+```json
+{
+  "message": "Find documents about monitoring model behavior."
+}
+```
+
+Example response field:
+
+```json
+{
+  "session_id": "6e5d01cd-f82f-4e71-b3db-b90740bfd6c8"
+}
+```
+
+The same session can then be reused:
+
+```json
+{
+  "message": "Summarize the first result.",
+  "session_id": "6e5d01cd-f82f-4e71-b3db-b90740bfd6c8"
+}
+```
+
+The agent can resolve references such as:
+
+```text
+the first result
+that result
+that document
+the previous result
+it
+```
+
+using stored conversational context.
+
+---
+
+## Bounded Memory
+
+Conversation memory is deliberately bounded.
+
+The local session store limits:
+
+* stored turns per session
+* active session count
+
+This prevents uncontrolled context growth and excessive memory consumption.
+
+The current implementation is intentionally process-local.
+
+---
+
+## Session Reset
+
+A session can be cleared using:
+
+```text
+DELETE /api/v1/sessions/{session_id}
+```
+
+Example:
+
+```json
+{
+  "session_id": "example-session-id",
+  "cleared": true
+}
+```
+
+---
+
+# Evaluation
+
+The platform includes a reproducible agent evaluation framework.
+
+Run through:
+
+```text
+POST /api/v1/eval/run
+```
+
+Evaluation measures include:
+
+* pass rate
+* tool-selection accuracy
+* tool-execution accuracy
+* answer validity
+* expected-result accuracy
+* output-schema accuracy
+* execution latency
+
+Latest deterministic evaluation:
 
 ```text
 total_cases:              16
@@ -857,1344 +549,716 @@ expected_result_accuracy: 1.0
 output_schema_accuracy:   1.0
 ```
 
-The deterministic mode is used for reproducible orchestration evaluation without LLM-output variability.
+Deterministic mode uses:
 
-Machine-readable results are stored in:
+```text
+ENABLE_LLM=false
+```
+
+to remove LLM-output variability and evaluate orchestration reproducibly.
+
+Machine-readable results:
 
 ```text
 artifacts/agent_eval_results.json
 ```
 
-**---**
+---
 
-**## Automated tests**
+# Automated Tests
 
-The project includes automated tests for:
+The test suite covers:
 
-\- health endpoint
+* health endpoint
+* readiness endpoint
+* calculator flow
+* semantic retrieval
+* database statistics
+* run history
+* session creation
+* session preservation
+* session memory
+* session deletion
+* unknown-session deletion
+* conversational follow-up behavior
+* individual tools
+* evaluation logic
+* memory-based follow-ups using monkeypatching
 
-\- readiness endpoint
+Current result:
 
-\- calculator flow
-
-\- semantic document-search flow
-
-\- database-statistics flow
-
-\- run history
-
-\- session ID creation
-
-\- session ID preservation
-
-\- session memory storage
-
-\- session deletion
-
-\- unknown-session deletion
-
-\- conversational follow-up behavior
-
-\- tool behavior
-
-\- evaluation behavior
-
-\- memory-based follow-up with monkeypatching
-
-Current test result:
-
-\`\`\`text
-
+```text
 27 passed
-
-\`\`\`
+```
 
 Run:
 
-\`\`\`powershell
-
+```powershell
 pytest -q
+```
 
-\`\`\`
+---
 
-**---**
-
-**## Linting**
+## Linting
 
 The project uses Ruff.
 
 Run:
 
-\`\`\`powershell
-
+```powershell
 ruff check .
-
-\`\`\`
+```
 
 Automatic fixes:
 
-\`\`\`powershell
-
+```powershell
 ruff check . --fix
-
-\`\`\`
+```
 
 Current status:
 
-\`\`\`text
-
+```text
 All checks passed!
+```
 
-\`\`\`
+---
 
-**---**
+# API
 
-**## API endpoints**
+## Health
 
-**### Health**
-
-\`\`\`text
-
+```text
 GET /health
-
-\`\`\`
-
-Response:
-
-\`\`\`json
-
-{
-
-  "status": "ok"
-
-}
-
-\`\`\`
-
-**---**
-
-**### Readiness**
-
-\`\`\`text
-
-GET /ready
-
-\`\`\`
-
-Response:
-
-\`\`\`json
-
-{
-
-  "status": "ready"
-
-}
-
-\`\`\`
-
-**---**
-
-**### Run agent**
-
-\`\`\`text
-
-POST /api/v1/agent/run
-
-\`\`\`
+```
 
 Example:
 
-\`\`\`json
-
+```json
 {
-
-  "message": "Find documents about monitoring model behavior."
-
+  "status": "ok"
 }
+```
 
-\`\`\`
+## Readiness
 
-Optional session-based request:
+```text
+GET /ready
+```
 
-\`\`\`json
+Example:
 
+```json
 {
-
-  "message": "Summarize the first result.",
-
-  "session\_id": "example-session-id"
-
+  "status": "ready"
 }
+```
 
-\`\`\`
+## Run Agent
+
+```text
+POST /api/v1/agent/run
+```
+
+Example:
+
+```json
+{
+  "message": "Find documents about monitoring model behavior."
+}
+```
+
+Session-aware request:
+
+```json
+{
+  "message": "Summarize the first result.",
+  "session_id": "example-session-id"
+}
+```
 
 Example response structure:
 
-\`\`\`json
-
+```json
 {
-
-  "run\_id": "uuid",
-
-  "session\_id": "uuid",
-
-  "answer": "string",
-
-  "tool\_used": "document\_search",
-
-  "tool\_input": {},
-
-  "tool\_output": {},
-
-  "latency\_ms": 1000
-
+  "run_id": "uuid",
+  "session_id": "uuid",
+  "answer": "string",
+  "tool_used": "document_search",
+  "tool_input": {},
+  "tool_output": {},
+  "latency_ms": 1000
 }
+```
 
-\`\`\`
+## List Runs
 
-**---**
-
-**### List agent runs**
-
-\`\`\`text
-
+```text
 GET /api/v1/agent/runs
-
-\`\`\`
+```
 
 Optional limit:
 
-\`\`\`text
-
+```text
 GET /api/v1/agent/runs?limit=50
+```
 
-\`\`\`
+## Get Run
 
-**---**
+```text
+GET /api/v1/agent/runs/{run_id}
+```
 
-**### Get agent run**
+## Clear Session
 
-\`\`\`text
+```text
+DELETE /api/v1/sessions/{session_id}
+```
 
-GET /api/v1/agent/runs/{run\_id}
+## Run Evaluation
 
-\`\`\`
-
-**---**
-
-**### Clear session**
-
-\`\`\`text
-
-DELETE /api/v1/sessions/{session\_id}
-
-\`\`\`
-
-**---**
-
-**### Run evaluation**
-
-\`\`\`text
-
+```text
 POST /api/v1/eval/run
+```
 
-\`\`\`
+## Metrics
 
-**---**
-
-**### Prometheus metrics**
-
-\`\`\`text
-
+```text
 GET /metrics
+```
 
-\`\`\`
+Interactive API documentation is available through FastAPI Swagger.
 
-**---**
+---
 
-**## Observability**
+# Observability
 
-The application exposes Prometheus-compatible metrics.
+The platform exposes Prometheus-compatible metrics.
 
-Metrics include:
+Examples:
 
-\`\`\`text
+```text
+agent_runs_total
+agent_tool_calls_total
+agent_run_latency_seconds
+agent_errors_total
+```
 
-agent\_runs\_total
-
-agent\_tool\_calls\_total
-
-agent\_run\_latency\_seconds
-
-agent\_errors\_total
-
-\`\`\`
-
-A live Docker Compose workload also validated the Prometheus instrumentation.
-
-Observed application metrics:
+Observed application metrics from a live Docker Compose workload:
 
 ```text
 agent_runs_total{status="success"} 5.0
+
 agent_tool_calls_total{tool="calculator"} 2.0
 agent_tool_calls_total{tool="document_search"} 2.0
 agent_tool_calls_total{tool="database_stats"} 1.0
+
 agent_run_latency_seconds_count 5.0
 agent_run_latency_seconds_sum 163.01753908199998
 ```
 
-This is an observability validation snapshot, not a throughput benchmark; the sample is small and includes cold model/LLM overhead.
+This snapshot validates instrumentation rather than representing a throughput benchmark.
 
-Agent execution is also emitted through structured logging.
+The application also emits structured execution logs.
 
-Example log fields:
+Relevant fields include:
 
-\`\`\`text
+```text
+run_id
+tool_used
+planning_ms
+tool_ms
+answer_generation_ms
+total_ms
+```
 
-run\_id
+---
 
-tool\_used
+# Persistence
 
-planning\_ms
+Agent executions are persisted with SQLAlchemy.
 
-tool\_ms
+Stored information includes:
 
-answer\_generation\_ms
+* run ID
+* input message
+* generated answer
+* selected tool
+* tool input
+* tool output
+* execution latency
+* execution status
+* creation timestamp
 
-total\_ms
-
-\`\`\`
-
-**---**
-
-**## Persistence**
-
-Agent runs are stored using SQLAlchemy.
-
-Stored fields include:
-
-\- run ID
-
-\- user message
-
-\- generated answer
-
-\- selected tool
-
-\- tool input
-
-\- tool output
-
-\- execution latency
-
-\- success status
-
-\- creation timestamp
-
-SQLite is used for lightweight local development.
+SQLite is supported for lightweight local development.
 
 PostgreSQL is supported for production-style deployments.
 
-**---**
+---
 
-**## Project structure**
+# Security and Hardening
 
-\`\`\`text
+The project avoids arbitrary user-code execution.
 
+The calculator uses a restricted AST evaluator instead of direct `eval()` execution.
+
+Local and sensitive files are excluded from Git, including:
+
+```text
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+local database files
+```
+
+Docker build context is controlled using `.dockerignore`.
+
+No paid API key is required by the default local LLM configuration.
+
+Additional API hardening includes:
+
+* sanitized client-facing error messages
+* `503` handling for database/readiness failures
+* 64 KiB request-size limit
+* in-memory rate limiting at 60 requests per 60 seconds per client IP
+* `X-Content-Type-Options: nosniff`
+* `X-Frame-Options: DENY`
+* `Referrer-Policy: no-referrer`
+* restrictive `Permissions-Policy`
+* `Cache-Control: no-store`
+* PostgreSQL credentials supplied through environment configuration
+
+The current rate limiter is suitable for local or single-instance demonstration deployments. A distributed deployment should use shared infrastructure such as an API gateway, ingress controller, or distributed store.
+
+---
+
+# Technology Stack
+
+| Area                      | Technology            |
+| ------------------------- | --------------------- |
+| Language                  | Python                |
+| API                       | FastAPI               |
+| Validation                | Pydantic              |
+| Persistence               | SQLAlchemy            |
+| Server                    | Uvicorn               |
+| Local LLM                 | Ollama                |
+| Model                     | Llama 3.2 3B          |
+| Embeddings                | Sentence Transformers |
+| Embedding model           | all-MiniLM-L6-v2      |
+| ML runtime                | PyTorch               |
+| Local database            | SQLite                |
+| Production-style database | PostgreSQL            |
+| Metrics                   | Prometheus            |
+| Logging                   | Structured logging    |
+| Testing                   | pytest                |
+| Linting                   | Ruff                  |
+| Containers                | Docker                |
+| Local orchestration       | Docker Compose        |
+| Cluster orchestration     | Kubernetes            |
+| CI                        | GitHub Actions        |
+
+---
+
+# Project Structure
+
+```text
 applied-ai-agent-platform/
-
+│
 ├── .github/
-
-│   └── workflows/
-
-│       └── ci.yml
-
+│   └── workflows/
+│       └── ci.yml
+│
 ├── artifacts/
 │   ├── agent_eval_results.json
 │   └── retrieval_benchmark.json
+│
 ├── data/
-
-│   ├── documents/
-
-│   └── eval/
-
-│       └── agent\_eval.json
-
+│   ├── documents/
+│   └── eval/
+│       └── agent_eval.json
+│
 ├── src/
-
-│   ├── agent/
-
-│   │   ├── memory.py
-
-│   │   ├── planner.py
-
-│   │   ├── service.py
-
-│   │   └── tools.py
-
-│   ├── api/
-
-│   │   └── main.py
-
-│   ├── core/
-
-│   │   ├── config.py
-
-│   │   ├── logging.py
-
-│   │   └── metrics.py
-
-│   ├── db/
-
-│   │   ├── base.py
-
-│   │   └── session.py
-
-│   ├── eval/
-
-│   │   └── runner.py
-
-│   ├── models/
-
-│   │   └── run.py
-
-│   └── schemas/
-
-│       └── agent.py
-
+│   ├── agent/
+│   │   ├── memory.py
+│   │   ├── planner.py
+│   │   ├── service.py
+│   │   └── tools.py
+│   │
+│   ├── api/
+│   │   └── main.py
+│   │
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── logging.py
+│   │   └── metrics.py
+│   │
+│   ├── db/
+│   │   ├── base.py
+│   │   └── session.py
+│   │
+│   ├── eval/
+│   │   ├── retrieval_benchmark.py
+│   │   └── runner.py
+│   │
+│   ├── models/
+│   │   └── run.py
+│   │
+│   └── schemas/
+│       └── agent.py
+│
 ├── k8s/
-
-│   ├── configmap.yaml
-
-│   ├── deployment.yaml
-
-│   ├── ingress.yaml
-
-│   └── service.yaml
-
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── ingress.yaml
+│   └── service.yaml
+│
 ├── tests/
-
-│   ├── conftest.py
-
-│   ├── test\_api.py
-
-│   ├── test\_eval.py
-
-│   └── test\_tools.py
-
+│
 ├── .dockerignore
-
 ├── .env.example
-
 ├── .gitignore
-
 ├── docker-compose.yml
-
 ├── Dockerfile
-
 ├── LICENSE
-
 ├── pyproject.toml
-
 ├── README.md
-
 └── requirements.txt
+```
 
-\`\`\`
+---
 
-**---**
+# Local Setup
 
-**## Tech stack**
-
-**### Backend**
-
-\`\`\`text
-
-Python
-
-FastAPI
-
-Pydantic
-
-SQLAlchemy
-
-Uvicorn
-
-\`\`\`
-
-**### AI / ML**
-
-\`\`\`text
-
-Ollama
-
-Llama 3.2
-
-Sentence Transformers
-
-all-MiniLM-L6-v2
-
-PyTorch
-
-\`\`\`
-
-**### Observability**
-
-\`\`\`text
-
-Prometheus
-
-Structured logging
-
-Latency instrumentation
-
-\`\`\`
-
-**### Quality**
-
-\`\`\`text
-
-pytest
-
-Ruff
-
-\`\`\`
-
-**### Infrastructure**
-
-\`\`\`text
-
-Docker
-
-Docker Compose
-
-Kubernetes
-
-GitHub Actions
-
-PostgreSQL
-
-SQLite
-
-\`\`\`
-
-**---**
-
-**## Local setup**
-
-**### 1. Create a virtual environment**
+## 1. Create a Virtual Environment
 
 Windows:
 
-\`\`\`powershell
-
+```powershell
 python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-.\\.venv\Scripts\Activate.ps1
+## 2. Install Dependencies
 
-\`\`\`
-
-**### 2. Install dependencies**
-
-\`\`\`powershell
-
+```powershell
 pip install -r requirements.txt
+```
 
-\`\`\`
-
-**### 3. Environment configuration**
+## 3. Configure Environment
 
 Copy:
 
-\`\`\`text
-
+```text
 .env.example
-
-\`\`\`
+```
 
 to:
 
-\`\`\`text
-
+```text
 .env
+```
 
-\`\`\`
+The real `.env` file is ignored by Git.
 
-The real \`.env\` file is ignored by Git.
+---
 
-**---**
-
-**## Ollama setup**
+# Ollama Setup
 
 Install Ollama separately.
 
 Verify:
 
-\`\`\`powershell
-
+```powershell
 ollama --version
+```
 
-\`\`\`
+Pull the default model:
 
-Pull the model:
-
-\`\`\`powershell
-
+```powershell
 ollama pull llama3.2:3b
+```
 
-\`\`\`
+Test:
 
-Test it:
-
-\`\`\`powershell
-
+```powershell
 ollama run llama3.2:3b
+```
 
-\`\`\`
+---
 
-Example:
+# Run the API
 
-\`\`\`text
+```powershell
+uvicorn src.api.main:app --reload
+```
 
-\>>> Say only: model works
+API:
 
-model works
-
-\`\`\`
-
-Exit with:
-
-\`\`\`text
-
-/bye
-
-\`\`\`
-
-**---**
-
-**## Run the API**
-
-\`\`\`powershell
-
-uvicorn src.api.main\:app --reload
-
-\`\`\`
-
-Local API:
-
-\`\`\`text
-
-http\://127.0.0.1:8000
-
-\`\`\`
+```text
+http://127.0.0.1:8000
+```
 
 Swagger:
 
-\`\`\`text
-
-http\://127.0.0.1:8000/docs
-
-\`\`\`
+```text
+http://127.0.0.1:8000/docs
+```
 
 Prometheus metrics:
 
-\`\`\`text
+```text
+http://127.0.0.1:8000/metrics
+```
 
-http\://127.0.0.1:8000/metrics
+---
 
-\`\`\`
+# Docker
 
-**---**
+Docker Compose can start the FastAPI application and PostgreSQL.
 
-**## Example requests**
+Ollama is expected to run on the host because local model and GPU environments vary.
 
-**### Calculator**
+Windows PowerShell:
 
-\`\`\`json
-
-{
-
-  "message": "What is 17.5 multiplied by 8?"
-
-}
-
-\`\`\`
-
-**---**
-
-**### Semantic document search**
-
-\`\`\`json
-
-{
-
-  "message": "Find documents about monitoring model behavior."
-
-}
-
-\`\`\`
-
-**---**
-
-**### Database statistics**
-
-\`\`\`json
-
-{
-
-  "message": "Show me the database stats for previous runs."
-
-}
-
-\`\`\`
-
-**---**
-
-**### Follow-up conversation**
-
-First request:
-
-\`\`\`json
-
-{
-
-  "message": "Find documents about monitoring model behavior."
-
-}
-
-\`\`\`
-
-Take the returned:
-
-\`\`\`text
-
-session\_id
-
-\`\`\`
-
-Then send:
-
-\`\`\`json
-
-{
-
-  "message": "Summarize the first result.",
-
-  "session\_id": "returned-session-id"
-
-}
-
-\`\`\`
-
-**---**
-
-**## Docker**
-
-Docker Compose can start the FastAPI application and PostgreSQL. The PostgreSQL password is supplied through an environment variable.
-
-Ollama is expected to run on the host machine because local model and GPU environments vary.
-
-Run:
-
-\`\`\`powershell
-
+```powershell
 $env:POSTGRES_PASSWORD="postgres"
-
 docker compose up --build
+```
 
-\`\`\`
+Build the application image directly:
 
-**### Docker image**
+```powershell
+docker build -t applied-ai-agent-platform:latest .
+```
 
-A standalone application image can be built with:
+---
 
-\`\`\`powershell
+# Kubernetes
 
-docker build -t applied-ai-agent-platform\:latest .
+The repository includes:
 
-\`\`\`
-
-The repository includes a \`.dockerignore\` to prevent unnecessary local files such as virtual environments, Git metadata, caches, environment files, and local databases from being copied into the build context.
-
-**---**
-
-**## Kubernetes Deployment**
-
-The application includes Kubernetes manifests for container orchestration and local cluster deployment.
-
-\`\`\`text
-
+```text
 k8s/
-
 ├── configmap.yaml
-
 ├── deployment.yaml
-
 ├── service.yaml
-
 └── ingress.yaml
+```
 
-\`\`\`
+The Kubernetes configuration demonstrates:
 
-**### Kubernetes components**
+* `Deployment`
+* `ClusterIP Service`
+* `ConfigMap`
+* `Ingress`
+* liveness probes
+* readiness probes
+* CPU requests and limits
+* memory requests and limits
+* configurable image-pull policy
 
-The Kubernetes configuration includes:
+Build:
 
-\- \`Deployment\` for application lifecycle management
+```powershell
+docker build -t applied-ai-agent-platform:latest .
+```
 
-\- \`ClusterIP Service\` for internal service discovery and routing
+Deploy:
 
-\- \`ConfigMap\` for application configuration
-
-\- \`Ingress\` manifest for hostname-based routing
-
-\- liveness probe using \`/health\`
-
-\- readiness probe using \`/ready\`
-
-\- CPU requests and limits
-
-\- memory requests and limits
-
-\- configurable container image pull policy
-
-**### Build the image**
-
-\`\`\`powershell
-
-docker build -t applied-ai-agent-platform\:latest .
-
-\`\`\`
-
-**### Deploy**
-
-\`\`\`powershell
-
+```powershell
 kubectl apply -f k8s/configmap.yaml
-
 kubectl apply -f k8s/deployment.yaml
-
 kubectl apply -f k8s/service.yaml
-
 kubectl apply -f k8s/ingress.yaml
+```
 
-\`\`\`
+Verify:
 
-**### Verify the cluster**
-
-\`\`\`powershell
-
-kubectl cluster-info
-
-kubectl get nodes
-
-\`\`\`
-
-**### Verify application resources**
-
-\`\`\`powershell
-
+```powershell
 kubectl get pods
-
 kubectl get svc
-
 kubectl get ingress
-
-\`\`\`
+```
 
 A healthy application pod should report:
 
-\`\`\`text
+```text
+READY   STATUS
+1/1     Running
+```
 
-READY   STATUS
+For local access:
 
-1/1     Running
-
-\`\`\`
-
-**### Local access**
-
-For local development, expose the Kubernetes Service through port forwarding:
-
-\`\`\`powershell
-
+```powershell
 kubectl port-forward service/applied-ai-agent-service 8080:80
+```
 
-\`\`\`
+Then open:
 
-Swagger is then available at:
+```text
+http://127.0.0.1:8080/docs
+```
 
-\`\`\`text
+Health:
 
-http\://127.0.0.1:8080/docs
-
-\`\`\`
-
-Health endpoint:
-
-\`\`\`text
-
-http\://127.0.0.1:8080/health
-
-\`\`\`
-
-Expected response:
-
-\`\`\`json
-
-{
-
-  "status": "ok"
-
-}
-
-\`\`\`
-
-**### Health probes**
-
-The Kubernetes Deployment uses:
-
-\`\`\`text
-
-GET /health
-
-\`\`\`
-
-as the liveness probe and:
-
-\`\`\`text
-
-GET /ready
-
-\`\`\`
-
-as the readiness probe.
-
-This allows Kubernetes to distinguish between:
-
-\- a container that is alive
-
-\- an application that is ready to receive traffic
-
-**### ConfigMap**
-
-Runtime configuration is provided through:
-
-\`\`\`text
-
-k8s/configmap.yaml
-
-\`\`\`
-
-This separates deployment configuration from application code.
-
-**### Resource management**
-
-The Deployment defines CPU and memory requests and limits.
-
-This provides explicit scheduling and resource boundaries instead of allowing the application container to consume unlimited cluster resources.
-
-**### Service**
-
-The application is exposed internally through:
-
-\`\`\`text
-
-applied-ai-agent-service
-
-\`\`\`
-
-using a Kubernetes \`ClusterIP\` Service.
-
-The service maps:
-
-\`\`\`text
-
-port 80
-
-→
-
-container port 8000
-
-\`\`\`
-
-**### Ingress**
-
-The included Ingress manifest defines the hostname:
-
-\`\`\`text
-
-applied-ai-agent.local
-
-\`\`\`
-
-An ingress controller is required for direct hostname-based routing.
-
-The Ingress manifest is included as part of the deployment configuration even when local development uses \`kubectl port-forward\`.
-
-**### Local validation**
+```text
+http://127.0.0.1:8080/health
+```
 
 The Kubernetes deployment was validated locally using Docker Desktop Kubernetes.
 
-The validated flow was:
+---
 
-\`\`\`text
+# CI
 
-Docker image
+GitHub Actions runs quality checks on pushes and pull requests.
 
-    |
+The pipeline validates:
 
-    v
+```text
+dependency installation
+Ruff linting
+pytest
+```
 
-Kubernetes Deployment
+This provides automated regression checking before changes are merged.
 
-    |
+---
 
-    v
+# Design Decisions
 
-Pod
+## Local-First AI
 
-    |
+Ollama avoids a mandatory cloud inference dependency.
 
-    v
+Advantages include:
 
-ClusterIP Service
+* no per-request cloud API charge
+* local experimentation
+* local document processing
+* reproducible model configuration
+* offline development
 
-    |
+## Deterministic Fast Paths
 
-    v
+Simple operations should not require an LLM.
 
-kubectl port-forward
+The system therefore uses deterministic execution where possible and reserves the LLM for ambiguous or generative tasks.
 
-    |
+## Semantic Retrieval
 
-    v
+Document search uses embeddings so retrieval is not limited to exact keyword overlap.
 
-FastAPI /health and /docs
+## Bounded Memory
 
-\`\`\`
+Session memory is intentionally restricted to avoid unlimited prompt and process-memory growth.
 
-The deployment successfully served both the health endpoint and Swagger documentation through the Kubernetes Service.
-
-**---**
-
-**## Security**
-
-The project avoids executing arbitrary user code.
-
-The calculator uses a restricted AST evaluator.
-
-Sensitive and local-development files are excluded from Git.
-
-Examples include:
-
-\`\`\`text
-
-.env
-
-.venv/
-
-\_\_pycache\_\_/
-
-.pytest\_cache/
-
-.ruff\_cache/
-
-local database files
-
-\`\`\`
-
-Docker build context exclusions are managed through \`.dockerignore\`.
-
-No API keys need to be committed to the repository.
-
-Additional API hardening includes:
-
-- sanitized client-facing error messages
-- `503` handling for database/readiness failures
-- 64 KiB request-size limit
-- in-memory rate limiting at 60 requests per 60 seconds per client IP
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `Referrer-Policy: no-referrer`
-- restrictive `Permissions-Policy`
-- `Cache-Control: no-store`
-- PostgreSQL password supplied through environment configuration rather than hard-coded in Compose
-
-The in-memory rate limiter is suitable for local/demo single-instance deployment. A distributed deployment should use a shared store, ingress controller, or API gateway for rate limiting.
-
-**---**
-
-**## Design decisions**
-
-**### Local-first AI**
-
-The application uses Ollama instead of requiring a paid cloud LLM API.
-
-Benefits:
-
-\- no per-request cloud API cost
-
-\- local experimentation
-
-\- local data processing
-
-\- reproducible model configuration
-
-\- easier offline development
-
-**---**
-
-**### Deterministic fast paths**
-
-Simple requests should not require an LLM.
-
-The system therefore combines:
-
-\`\`\`text
-
-deterministic routing
-
-\+
-
-LLM fallback
-
-\`\`\`
-
-This reduces latency and improves predictability.
-
-**---**
-
-**### Semantic retrieval**
-
-Document search uses vector embeddings rather than relying only on literal keyword overlap.
-
-This allows related concepts to be retrieved even when the exact wording differs.
-
-**---**
-
-**### Bounded memory**
-
-Conversation memory is intentionally limited.
-
-This prevents:
-
-\- uncontrolled prompt growth
-
-\- excessive process memory usage
-
-\- continuously increasing context size
-
-**---**
-
-**### Observable execution**
+## Observable Execution
 
 The agent is treated as an observable software system rather than a black box.
 
-Latency is measured separately for:
+Planning, tool execution, answer generation, and total latency are measured separately.
 
-\`\`\`text
+## Containerized Deployment
 
-planning
+Docker provides a reproducible application runtime.
 
-tool execution
+## Kubernetes Orchestration
 
-answer generation
+Kubernetes separates application implementation from deployment concerns such as:
 
-total execution
+* service discovery
+* configuration
+* health monitoring
+* readiness monitoring
+* resource constraints
+* ingress routing
 
-\`\`\`
+---
 
-**---**
+# Current Limitations
 
-**### Containerized deployment**
-
-Docker is used to package the application into a reproducible runtime environment.
-
-A \`.dockerignore\` reduces unnecessary build context and excludes local development artifacts from the image build.
-
-**---**
-
-**### Kubernetes orchestration**
-
-Kubernetes provides a deployment layer around the containerized application.
-
-The implementation includes:
-
-\- declarative deployment manifests
-
-\- service discovery
-
-\- configuration management
-
-\- health monitoring
-
-\- readiness monitoring
-
-\- resource constraints
-
-\- ingress configuration
-
-This separates application code from runtime orchestration.
-
-**---**
-
-**## Current limitations**
-
-The current implementation intentionally remains lightweight.
+The project intentionally remains lightweight.
 
 Current limitations include:
 
-\- conversation memory is in-process
+* conversational memory is process-local
+* memory is lost after restart
+* sessions are not distributed across replicas
+* document search currently targets local text files
+* local LLM inference can be slow on CPU
+* authentication is not currently included
+* no persistent vector database is required
+* Ollama runs outside the Kubernetes pod in the current local configuration
+* direct Ingress routing requires an ingress controller
+* distributed session storage is required before horizontally scaling application replicas
 
-\- conversation memory is lost after application restart
+---
 
-\- session state is not distributed between multiple replicas
-
-\- document search currently targets local text files
-
-\- the local LLM can be slow on CPU
-
-\- no authentication layer is currently included
-
-\- no persistent vector database is required yet
-
-\- inference speed depends heavily on hardware
-
-\- Ollama is expected to run outside the Kubernetes pod in the current local configuration
-
-\- direct Ingress routing requires an ingress controller
-
-\- distributed session state would be required before safely scaling multiple application replicas
-
-**---**
-
-**## Future improvements**
+# Future Improvements
 
 Potential extensions include:
 
-\- persistent Redis-backed conversation memory
+* Redis-backed session memory
+* distributed session state
+* document chunking
+* hybrid lexical + semantic retrieval
+* reranking
+* vector database integration
+* streaming responses
+* asynchronous tool execution
+* response caching
+* OpenTelemetry tracing
+* Grafana dashboards
+* authentication
+* RBAC
+* model routing
+* prompt versioning
+* persistent evaluation history
+* retrieval-specific evaluation metrics
+* multi-step tool execution
+* native model tool-calling
+* multi-agent workflows
+* Horizontal Pod Autoscaling
+* Kubernetes Secrets
+* Helm charts
+* cloud Kubernetes deployment
+* GPU inference support
 
-\- distributed session state
+---
 
-\- document chunking
+# What This Project Demonstrates
 
-\- hybrid lexical + semantic retrieval
+```text
+Applied AI Engineering
+LLM Orchestration
+Agent Architecture
+Deterministic Routing
+Semantic Retrieval
+Tool Execution
+Conversation Memory
+Evaluation
+Performance Engineering
+FastAPI
+Database Persistence
+Observability
+Testing
+Docker
+Kubernetes
+CI/CD
+```
 
-\- reranking
+The goal is to demonstrate how AI capabilities can be integrated into a **measurable, testable, observable, deployable, and production-oriented software system**.
 
-\- persistent vector database integration
+---
 
-\- streaming responses
+# Interview Summary
 
-\- asynchronous tool execution
+> I built a production-style local AI agent backend that combines deterministic routing with an Ollama-based LLM fallback. The system can execute safe tools, perform semantic document retrieval with cached Sentence Transformer embeddings, preserve bounded conversational context, persist execution history, and expose detailed Prometheus and structured-log telemetry. I added a reproducible evaluation framework, optimized fast-path execution to remove unnecessary model calls, containerized the application with Docker, and deployed it locally through Kubernetes with health probes and explicit resource constraints.
 
-\- response caching
+---
 
-\- OpenTelemetry tracing
-
-\- Grafana dashboards
-
-\- authentication and RBAC
-
-
-\- model routing
-
-\- prompt versioning
-
-\- persistent evaluation history
-
-\- retrieval-specific evaluation metrics
-
-\- multi-step tool execution
-
-\- native tool-calling model support
-
-\- multi-agent workflows
-
-\- Horizontal Pod Autoscaling
-
-\- Kubernetes Secrets
-
-\- Helm charts
-
-\- cloud Kubernetes deployment
-
-\- GPU inference support
-
-**---**
-
-**## Testing philosophy**
-
-Tests are designed to avoid dependencies on external services where possible.
-
-The automated suite does not require a live Ollama instance for core API and memory-flow validation.
-
-Monkeypatching is used for conversational follow-up tests so the CI pipeline can verify session behavior deterministically.
-
-**---**
-
-**## CI**
-
-GitHub Actions can automatically run quality checks on pushes and pull requests.
-
-Typical CI checks include:
-
-\`\`\`text
-
-dependency installation
-
-Ruff linting
-
-pytest
-
-\`\`\`
-
-This helps prevent regressions before changes are merged.
-
-**---**
-
-**## What this project demonstrates**
-
-The project combines several applied AI engineering areas in a single backend:
-
-\`\`\`text
-
-LLM orchestration
-
-deterministic routing
-
-semantic retrieval
-
-tool execution
-
-conversation memory
-
-evaluation
-
-API engineering
-
-database persistence
-
-observability
-
-performance optimization
-
-testing
-
-containerization
-
-Kubernetes orchestration
-
-CI
-
-\`\`\`
-
-The goal is to demonstrate how AI capabilities can be integrated into a measurable, testable, deployable, and production-oriented software system.
-
-**---**
-
-**## License**
+# License
 
 MIT License.
