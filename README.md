@@ -272,14 +272,14 @@ Latest local result:
 queries_tested: 10
 
 cold_start_ms:
-13788.895
+7019.240
 
 warm_latency_ms:
-  average: 12.377
-  median: 13.038
-  p95: 13.566
-  min: 10.030
-  max: 13.655
+  average: 70.316
+  median: 8.108
+  p95: 322.727
+  min: 4.407
+  max: 383.415
 ```
 
 The cold measurement includes one-time model initialization and corpus embedding in a fresh Python process.
